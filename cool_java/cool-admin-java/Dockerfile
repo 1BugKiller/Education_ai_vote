@@ -11,4 +11,4 @@ COPY target/cool-admin-8.0.0.jar /app/cool-admin-8.0.0.jar
 EXPOSE 8001
 
 # 运行Spring Boot应用程序的命令
-ENTRYPOINT ["java", "-jar", "/app/cool-admin-8.0.0.jar", "--spring.profiles.active=prod"]
+ENTRYPOINT ["java", "-jar", "/app/cool-admin-8.0.0.jar", "--spring.profiles.active=local"]

@@ -1,58 +1,67 @@
-version: '3.8'
-
 services:
-  # 1. MySQL 数据库服务
   mysql:
-    image: mysql:8.0  # 使用 MySQL 8.0 镜像
-    container_name: edu-mysql
-    restart: always
+    image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: root123  #  root 密码（可修改）
-      MYSQL_DATABASE: edu_ai_vote   # 自动创建的数据库名（和项目对应）
-      MYSQL_CHARSET: utf8mb4
-      MYSQL_COLLATION: utf8mb4_general_ci
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: "cool"
+      MYSQL_INITDB_SKIP_TZINFO: "1"
+    networks:
+      - backend
     ports:
-      - "3306:3306"  # 本地端口:容器端口（本地可通过 3306 连接）
+      - "3306:3306"
     volumes:
-      - mysql-data:/var/lib/mysql  # 数据持久化（重启不丢失数据）
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql  # 初始化脚本
-    networks:
-      - edu-network  # 所有服务在同一网络，可通过服务名访问
+      - mysql-data:/var/lib/mysql
+    restart: always  # 正确格式：字符串，无缩进错误
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-character-set-client-handshake
 
-  # 2. Java 后端服务（依赖 MySQL）
+  redis:
+    image: redis:alpine
+    networks:
+      - backend
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: always  # 正确格式
+
   backend:
-    build: ./backend  # 基于 backend 目录的 Dockerfile 构建
-    container_name: edu-backend
-    restart: always
+    build: ./cool_java/cool-admin-java
     depends_on:
-      - mysql  # 先启动 MySQL 再启动后端
+      - mysql
+      - redis
     environment:
-      # 后端连接 MySQL 的配置（和上面 MySQL 环境变量对应）
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/edu_ai_vote?useSSL=false&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cool?useUnicode=true&characterEncoding=UTF-8&serverTimezone=GMT%2b8&useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root123
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_DATASOURCE_DRIVER-CLASS-NAME: com.mysql.cj.jdbc.Driver
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      AUTO_TABLE_ENABLE: "true"
+      AUTO_TABLE_MODEL-PACKAGE: com.cool.**.entity
+      AUTO_TABLE_AUTODROPINDEX: "true"
+      COOL_INITDATA: "true"
+      LOGGING_LEVEL_COM_COOL: debug
+      LOGGING_LEVEL_COM_MYBATISFLEX: debug
+    command: "sh -c 'sleep 10 && java -jar /app/cool-admin-8.0.0.jar --spring.profiles.active=local'"
     ports:
-      - "8001:8001"  # 后端接口端口（Cool Admin 后端默认 8001）
+      - "8001:8001"
+    restart: always  # 正确格式
     networks:
-      - edu-network
+      - backend
 
-  # 3. Vue3 前端服务（依赖后端）
   frontend:
-    build: ./frontend  # 基于 frontend 目录的 Dockerfile 构建
-    container_name: edu-frontend
-    restart: always
+    build: ./cool_vue/cool-admin-vue
     depends_on:
-      - backend  # 先启动后端再启动前端
+      - backend
     ports:
-      - "9000:9000"  # 前端访问端口（Cool Admin 前端默认 9000）
+      - "9000:9000"
+    restart: always  # 正确格式
     networks:
-      - edu-network
+      - backend
 
-# 数据卷：持久化 MySQL 数据
+networks:
+  backend:
+
 volumes:
   mysql-data:
-
-# 自定义网络：让服务之间可通过服务名通信（如 backend 访问 mysql:3306）
-networks:
-  edu-network:
-    driver: bridge
+  redis-data:
